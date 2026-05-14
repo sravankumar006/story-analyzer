@@ -6,6 +6,22 @@ import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
 import Link from "next/link";
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  ReferenceLine 
+} from 'recharts';
+
+type CharacterEntry = {
+  name: string;
+  mentions: number;
+  role: string;
+};
 
 type AnalyzeResult = {
   overallScore: number;
@@ -18,6 +34,22 @@ type AnalyzeResult = {
   strengths: string[];
   weaknesses: string[];
   suggestions: string[];
+  // Extended fields
+  summary?: string;
+  themes?: string[];
+  characterList?: CharacterEntry[];
+  timeline?: string[];
+    readability?: {
+      flesch_reading_ease: number;
+      grade_level: number;
+      word_count: number;
+      sentence_count: number;
+    };
+    sentiment?: { section: string; score: number }[];
+    relationshipGraph?: {
+      nodes: { id: string; type: string }[];
+      links: { source: string; target: string; type: string }[];
+    };
 } | null;
 
 export default function Home() {
@@ -174,6 +206,24 @@ Scores:
 - Originality: ${result.originality}/10
 - Emotional Impact: ${result.emotionalImpact}/10
 
+Summary:
+${result.summary || "N/A"}
+
+Themes:
+${result.themes?.join(", ") || "N/A"}
+
+Characters:
+${result.characterList?.map(c => `- ${c.name} (${c.role}, ${c.mentions} mentions)`).join('\n') || "N/A"}
+
+Timeline:
+${result.timeline?.map((e, i) => `${i + 1}. ${e}`).join('\n') || "N/A"}
+
+Readability:
+- Flesch Reading Ease: ${result.readability?.flesch_reading_ease || "N/A"}
+- Grade Level: ${result.readability?.grade_level || "N/A"}
+- Word Count: ${result.readability?.word_count || "N/A"}
+- Sentence Count: ${result.readability?.sentence_count || "N/A"}
+
 Strengths:
 ${result.strengths.map(s => `- ${s}`).join('\n')}
 
@@ -225,7 +275,6 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
       `Originality: ${result.originality}/10`,
       `Emotional Impact: ${result.emotionalImpact}/10`
     ];
-
     // Print scores in 2 columns
     scores.forEach((score, index) => {
       const col = index % 2 === 0 ? margin : margin + 80;
@@ -236,9 +285,34 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
 
     y += 5;
 
+    // Summary
+    if (result.summary) {
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Summary", margin, y);
+      y += 7;
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "italic");
+      const summaryLines = doc.splitTextToSize(result.summary, pageWidth - margin * 2);
+      doc.text(summaryLines, margin, y);
+      y += summaryLines.length * 5 + 5;
+    }
+
+    // Readability
+    if (result.readability) {
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Readability", margin, y);
+      y += 7;
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Flesch Ease: ${result.readability.flesch_reading_ease} | Grade: ${result.readability.grade_level} | Words: ${result.readability.word_count}`, margin, y);
+      y += 10;
+    }
+
     // Helper to add sections
     const addSection = (title: string, items: string[]) => {
-      if (y > 270) {
+      if (y > 250) {
         doc.addPage();
         y = 20;
       }
@@ -249,7 +323,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
 
       doc.setFontSize(11);
       doc.setFont("helvetica", "normal");
-      items.forEach(item => {
+      items.forEach((item) => {
         const textLines = doc.splitTextToSize(`• ${item}`, pageWidth - margin * 2);
         if (y + (textLines.length * 6) > 280) {
           doc.addPage();
@@ -264,6 +338,18 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
     addSection("Strengths", result.strengths);
     addSection("Areas for Improvement", result.weaknesses);
     addSection("Suggestions", result.suggestions);
+
+    if (result.themes && result.themes.length > 0) {
+      addSection("Themes", result.themes);
+    }
+
+    if (result.timeline && result.timeline.length > 0) {
+      addSection("Timeline", result.timeline);
+    }
+
+    if (result.characterList && result.characterList.length > 0) {
+      addSection("Characters", result.characterList.map(c => `${c.name} (${c.role}, ${c.mentions} mentions)`));
+    }
 
     doc.save("story-analysis-report.pdf");
   };
@@ -615,6 +701,326 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                 </ul>
               </motion.div>
             </div>
+
+            {/* ── Extended Analysis Sections ── */}
+
+            {/* Summary */}
+            {result.summary && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-white/80 backdrop-blur-md border border-slate-100 rounded-3xl p-8 shadow-xl"
+              >
+                <h3 className="text-xl font-black text-slate-800 flex items-center mb-4">
+                  <div className="bg-slate-100 p-2 rounded-xl mr-3">
+                    <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                  </div>
+                  Summary
+                </h3>
+                <p className="text-slate-600 leading-relaxed text-base font-medium italic">&ldquo;{result.summary}&rdquo;</p>
+              </motion.div>
+            )}
+
+            {/* Themes + Characters side by side */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+              {/* Themes */}
+              {result.themes && result.themes.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  className="bg-white/80 backdrop-blur-md border border-purple-100 rounded-3xl p-8 shadow-xl"
+                >
+                  <h3 className="text-xl font-black text-purple-700 flex items-center mb-5">
+                    <div className="bg-purple-100 p-2 rounded-xl mr-3">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                    </div>
+                    Themes
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {result.themes.map((theme, i) => (
+                      <span key={i} className="bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 font-bold text-sm px-4 py-2 rounded-full border border-purple-200 shadow-sm">
+                        {theme}
+                      </span>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Characters */}
+              {result.characterList && result.characterList.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="bg-white/80 backdrop-blur-md border border-pink-100 rounded-3xl p-8 shadow-xl"
+                >
+                  <h3 className="text-xl font-black text-pink-700 flex items-center mb-5">
+                    <div className="bg-pink-100 p-2 rounded-xl mr-3">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    </div>
+                    Characters
+                  </h3>
+                  <div className="flex flex-col gap-3">
+                    {result.characterList.map((char, i) => (
+                      <div key={i} className="flex items-center justify-between bg-slate-50/80 rounded-2xl px-4 py-3 border border-slate-100">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-purple-700 font-black text-sm">
+                            {char.name[0]?.toUpperCase()}
+                          </div>
+                          <span className="font-bold text-slate-700">{char.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-bold px-3 py-1 rounded-full capitalize ${
+                            char.role === "protagonist" ? "bg-emerald-100 text-emerald-700"
+                            : char.role === "antagonist" ? "bg-rose-100 text-rose-700"
+                            : char.role === "supporting" ? "bg-amber-100 text-amber-700"
+                            : "bg-slate-100 text-slate-500"
+                          }`}>{char.role}</span>
+                          <span className="text-xs text-slate-400 font-semibold">{char.mentions}×</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </div>
+
+            {/* Timeline */}
+            {result.timeline && result.timeline.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+                className="bg-white/80 backdrop-blur-md border border-amber-100 rounded-3xl p-8 shadow-xl"
+              >
+                <h3 className="text-xl font-black text-amber-700 flex items-center mb-6">
+                  <div className="bg-amber-100 p-2 rounded-xl mr-3">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                  </div>
+                  Story Timeline
+                </h3>
+                <div className="relative pl-6">
+                  <div className="absolute left-2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-amber-300 to-transparent rounded-full"></div>
+                  <div className="flex flex-col gap-5">
+                    {result.timeline.map((event, i) => (
+                      <div key={i} className="relative flex items-start gap-4">
+                        <div className="absolute -left-6 top-1 w-4 h-4 rounded-full bg-amber-400 border-2 border-white shadow-sm flex items-center justify-center">
+                          <span className="text-white font-black" style={{ fontSize: "8px" }}>{i + 1}</span>
+                        </div>
+                        <p className="text-slate-700 font-medium leading-relaxed bg-amber-50/60 rounded-2xl px-4 py-3 border border-amber-100 flex-1">{event}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Readability */}
+            {result.readability && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="bg-white/80 backdrop-blur-md border border-teal-100 rounded-3xl p-8 shadow-xl"
+              >
+                <h3 className="text-xl font-black text-teal-700 flex items-center mb-6">
+                  <div className="bg-teal-100 p-2 rounded-xl mr-3">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                  </div>
+                  Readability
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {[
+                    { label: "Flesch Score", value: result.readability.flesch_reading_ease, suffix: "/100", hint: result.readability.flesch_reading_ease >= 70 ? "Easy" : result.readability.flesch_reading_ease >= 50 ? "Medium" : "Hard" },
+                    { label: "Grade Level", value: result.readability.grade_level, suffix: "", hint: `Grade ${result.readability.grade_level}` },
+                    { label: "Word Count", value: result.readability.word_count, suffix: " words", hint: "" },
+                    { label: "Sentences", value: result.readability.sentence_count, suffix: "", hint: "" },
+                  ].map((stat, i) => (
+                    <div key={i} className="bg-teal-50/70 rounded-2xl p-5 flex flex-col items-center text-center border border-teal-100">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{stat.label}</span>
+                      <span className="text-2xl font-black text-teal-700">{stat.value}<span className="text-sm font-bold text-teal-400">{stat.suffix}</span></span>
+                      {stat.hint && <span className="text-xs text-teal-500 font-semibold mt-1">{stat.hint}</span>}
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Sentiment Analysis Chart */}
+            {result.sentiment && result.sentiment.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="bg-white/80 backdrop-blur-md border border-indigo-100 rounded-3xl p-8 shadow-xl"
+              >
+                <h3 className="text-xl font-black text-indigo-700 flex items-center mb-6">
+                  <div className="bg-indigo-100 p-2 rounded-xl mr-3">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                  </div>
+                  Narrative Sentiment Flow
+                </h3>
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={result.sentiment}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis 
+                        dataKey="section" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#64748b', fontSize: 10, fontWeight: 600 }}
+                        dy={10}
+                      />
+                      <YAxis 
+                        domain={[-1, 1]} 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#64748b', fontSize: 10, fontWeight: 600 }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)', 
+                          borderRadius: '16px', 
+                          border: 'none', 
+                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' 
+                        }}
+                        itemStyle={{ fontWeight: 'bold' }}
+                      />
+                      <ReferenceLine y={0} stroke="#94a3b8" strokeWidth={1} />
+                      <Line 
+                        type="monotone" 
+                        dataKey="score" 
+                        stroke="url(#colorScore)" 
+                        strokeWidth={4} 
+                        dot={{ r: 6, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }}
+                        activeDot={{ r: 8, strokeWidth: 0 }}
+                      />
+                      <defs>
+                        <linearGradient id="colorScore" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#6366f1" />
+                          <stop offset="100%" stopColor="#a855f7" />
+                        </linearGradient>
+                      </defs>
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex justify-between mt-4 px-2">
+                  <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Negative</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Neutral</span>
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Positive</span>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Relationship Graph */}
+            {result.relationshipGraph && result.relationshipGraph.nodes.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="bg-white/80 backdrop-blur-md border border-pink-100 rounded-3xl p-8 shadow-xl"
+              >
+                <h3 className="text-xl font-black text-pink-700 flex items-center mb-6">
+                  <div className="bg-pink-100 p-2 rounded-xl mr-3">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                  </div>
+                  Character Relationship Network
+                </h3>
+                <div className="relative h-80 w-full bg-slate-50/50 rounded-2xl overflow-hidden border border-slate-100">
+                  <svg width="100%" height="100%" viewBox="0 0 800 400">
+                    <defs>
+                      <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#cbd5e1" />
+                      </marker>
+                    </defs>
+                    {/* Render Links */}
+                    {result.relationshipGraph.links.map((link, i) => {
+                      const sourceNode = result.relationshipGraph!.nodes.find(n => n.id === link.source);
+                      const targetNode = result.relationshipGraph!.nodes.find(n => n.id === link.target);
+                      if (!sourceNode || !targetNode) return null;
+                      
+                      // Simple force-ish layout positions (circular)
+                      const getPos = (id: string) => {
+                        const idx = result.relationshipGraph!.nodes.findIndex(n => n.id === id);
+                        const angle = (idx / result.relationshipGraph!.nodes.length) * 2 * Math.PI;
+                        const r = 130;
+                        return { x: 400 + r * Math.cos(angle), y: 200 + r * Math.sin(angle) };
+                      };
+                      
+                      const sPos = getPos(link.source);
+                      const tPos = getPos(link.target);
+                      
+                      return (
+                        <g key={i}>
+                          <line 
+                            x1={sPos.x} y1={sPos.y} 
+                            x2={tPos.x} y2={tPos.y} 
+                            stroke="#cbd5e1" 
+                            strokeWidth={2} 
+                            strokeDasharray="5,5"
+                          />
+                          <text 
+                            x={(sPos.x + tPos.x) / 2} 
+                            y={(sPos.y + tPos.y) / 2 - 5} 
+                            textAnchor="middle" 
+                            className="text-[8px] font-black fill-slate-400 uppercase"
+                          >
+                            {link.type}
+                          </text>
+                        </g>
+                      );
+                    })}
+                    {/* Render Nodes */}
+                    {result.relationshipGraph.nodes.map((node, i) => {
+                      const idx = result.relationshipGraph!.nodes.findIndex(n => n.id === node.id);
+                      const angle = (idx / result.relationshipGraph!.nodes.length) * 2 * Math.PI;
+                      const r = 130;
+                      const x = 400 + r * Math.cos(angle);
+                      const y = 200 + r * Math.sin(angle);
+                      
+                      return (
+                        <motion.g 
+                          key={node.id}
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: 0.5 + i * 0.1, type: "spring" }}
+                        >
+                          <circle 
+                            cx={x} cy={y} r={35} 
+                            className={`fill-white stroke-2 ${
+                              node.type === 'protagonist' ? 'stroke-indigo-400' 
+                              : node.type === 'antagonist' ? 'stroke-rose-400' 
+                              : 'stroke-amber-400'
+                            } shadow-sm`} 
+                          />
+                          <text 
+                            x={x} y={y + 5} 
+                            textAnchor="middle" 
+                            className="text-[10px] font-bold fill-slate-700"
+                          >
+                            {node.id.split(' ')[0]}
+                          </text>
+                        </motion.g>
+                      );
+                    })}
+                  </svg>
+                  <div className="absolute bottom-4 left-4 flex gap-4">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-indigo-400"></div>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">Protagonist</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-rose-400"></div>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">Antagonist</span>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
           </motion.div>
         )}
 
