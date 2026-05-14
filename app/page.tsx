@@ -16,6 +16,7 @@ import {
   ResponsiveContainer,
   ReferenceLine 
 } from 'recharts';
+import { generateStoryReport } from "@/lib/pdf-export";
 
 type CharacterEntry = {
   name: string;
@@ -44,18 +45,22 @@ type AnalyzeResult = {
       grade_level: number;
       word_count: number;
       sentence_count: number;
+      average_sentence_length: number;
     };
     sentiment?: { section: number | string; score: number }[];
     relationshipGraph?: {
       nodes: { id: string; type: string }[];
       links: { source: string; target: string; type: string }[];
     };
+    analysisMode?: "quick" | "deep";
 } | null;
 
 export default function Home() {
   const MIN_STORY_LENGTH = 100;
   const [story, setStory] = useState("");
   const [loading, setLoading] = useState(false);
+  const [analysisMode, setAnalysisMode] = useState<"quick" | "deep">("deep");
+  const [isExporting, setIsExporting] = useState(false);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalyzeResult>(null);
@@ -136,10 +141,11 @@ export default function Home() {
     }
   };
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = async (mode: "quick" | "deep" = "deep") => {
     if (story.length < MIN_STORY_LENGTH) return;
 
     setLoading(true);
+    setAnalysisMode(mode);
     setResult(null);
 
     try {
@@ -148,7 +154,7 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ story }),
+        body: JSON.stringify({ story, analysisMode: mode }),
       });
 
       const analysisData = await response.json();
@@ -223,6 +229,7 @@ Readability:
 - Grade Level: ${result.readability?.grade_level || "N/A"}
 - Word Count: ${result.readability?.word_count || "N/A"}
 - Sentence Count: ${result.readability?.sentence_count || "N/A"}
+- Average Sentence Length: ${result.readability?.average_sentence_length || "N/A"}
 
 Strengths:
 ${result.strengths.map(s => `- ${s}`).join('\n')}
@@ -243,115 +250,14 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
 
   const handleDownloadPdf = async () => {
     if (!result) return;
-
-    // Dynamically import jsPDF to keep bundle size small and avoid SSR issues
-    const { jsPDF } = await import("jspdf");
-    const doc = new jsPDF();
-
-    const margin = 20;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    let y = 20;
-
-    // Title
-    doc.setFontSize(22);
-    doc.setFont("helvetica", "bold");
-    doc.text("Story Analysis Report", pageWidth / 2, y, { align: "center" });
-    y += 15;
-
-    // Overall Score
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Overall Score: ${result.overallScore}/10`, margin, y);
-    y += 10;
-
-    // Sub-scores
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "normal");
-    const scores = [
-      `Grammar: ${result.grammar}/10`,
-      `Plot: ${result.plot}/10`,
-      `Characters: ${result.characters}/10`,
-      `Pacing: ${result.pacing}/10`,
-      `Originality: ${result.originality}/10`,
-      `Emotional Impact: ${result.emotionalImpact}/10`
-    ];
-    // Print scores in 2 columns
-    scores.forEach((score, index) => {
-      const col = index % 2 === 0 ? margin : margin + 80;
-      doc.text(score, col, y);
-      if (index % 2 !== 0) y += 8;
-    });
-    if (scores.length % 2 !== 0) y += 8;
-
-    y += 5;
-
-    // Summary
-    if (result.summary) {
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text("Summary", margin, y);
-      y += 7;
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "italic");
-      const summaryLines = doc.splitTextToSize(result.summary, pageWidth - margin * 2);
-      doc.text(summaryLines, margin, y);
-      y += summaryLines.length * 5 + 5;
+    setIsExporting(true);
+    try {
+      await generateStoryReport(story, result);
+    } catch (err) {
+      console.error("PDF Export failed:", err);
+    } finally {
+      setIsExporting(false);
     }
-
-    // Readability
-    if (result.readability) {
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text("Readability", margin, y);
-      y += 7;
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Flesch Ease: ${result.readability.flesch_reading_ease} | Grade: ${result.readability.grade_level} | Words: ${result.readability.word_count}`, margin, y);
-      y += 10;
-    }
-
-    // Helper to add sections
-    const addSection = (title: string, items: string[]) => {
-      if (y > 250) {
-        doc.addPage();
-        y = 20;
-      }
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text(title, margin, y);
-      y += 8;
-
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "normal");
-      items.forEach((item) => {
-        const textLines = doc.splitTextToSize(`• ${item}`, pageWidth - margin * 2);
-        if (y + (textLines.length * 6) > 280) {
-          doc.addPage();
-          y = 20;
-        }
-        doc.text(textLines, margin, y);
-        y += textLines.length * 6 + 2;
-      });
-      y += 5;
-    };
-
-    addSection("Strengths", result.strengths);
-    addSection("Areas for Improvement", result.weaknesses);
-    addSection("Suggestions", result.suggestions);
-
-    if (result.themes && result.themes.length > 0) {
-      addSection("Themes", result.themes);
-    }
-
-    if (result.timeline && result.timeline.length > 0) {
-      addSection("Timeline", result.timeline);
-    }
-
-    if (result.characterList && result.characterList.length > 0) {
-      addSection("Characters", result.characterList.map(c => `${c.name} (${c.role}, ${c.mentions} mentions)`));
-    }
-
-    doc.save("story-analysis-report.pdf");
   };
 
   return (
@@ -365,30 +271,45 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
         {!authLoading && (
           user ? (
             /* Logged in — liquid glass profile button */
-            <Link
-              href="/dashboard"
-              title="Go to Profile"
-              className="group relative flex items-center justify-center w-12 h-12 rounded-full transition-transform duration-300 hover:scale-105 active:scale-95"
-            >
-              <span className="absolute inset-0 rounded-full bg-white/30 backdrop-blur-xl border border-white/60 shadow-[0_4px_24px_0_rgba(99,102,241,0.18),inset_0_1.5px_2px_0_rgba(255,255,255,0.7)] group-hover:shadow-[0_6px_32px_0_rgba(99,102,241,0.30),inset_0_1.5px_2px_0_rgba(255,255,255,0.8)] transition-shadow duration-300 pointer-events-none" />
-              {user.user_metadata?.avatar_url ? (
-                <img
-                  src={user.user_metadata.avatar_url}
-                  alt="Profile"
-                  className="relative w-10 h-10 rounded-full object-cover border-2 border-white/70 shadow-sm"
-                />
-              ) : (
-                <span className="relative w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-extrabold text-lg shadow-sm border-2 border-white/70">
-                  {(user.user_metadata?.full_name?.[0] || user.email?.[0] || "?").toUpperCase()}
-                </span>
-              )}
-            </Link>
+            <div className="flex items-center space-x-6">
+              <Link
+                href="/compare"
+                className="text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors hidden sm:block"
+              >
+                Compare Stories
+              </Link>
+              <Link
+                href="/dashboard"
+                title="Go to Profile"
+                className="group relative flex items-center justify-center w-12 h-12 rounded-full transition-transform duration-300 hover:scale-105 active:scale-95"
+              >
+                <span className="absolute inset-0 rounded-full bg-white/30 backdrop-blur-xl border border-white/60 shadow-[0_4px_24px_0_rgba(99,102,241,0.18),inset_0_1.5px_2px_0_rgba(255,255,255,0.7)] group-hover:shadow-[0_6px_32px_0_rgba(99,102,241,0.30),inset_0_1.5px_2px_0_rgba(255,255,255,0.8)] transition-shadow duration-300 pointer-events-none" />
+                {user.user_metadata?.avatar_url ? (
+                  <img
+                    src={user.user_metadata.avatar_url}
+                    alt="Profile"
+                    className="relative w-10 h-10 rounded-full object-cover border-2 border-white/70 shadow-sm"
+                  />
+                ) : (
+                  <span className="relative w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-extrabold text-lg shadow-sm border-2 border-white/70">
+                    {(user.user_metadata?.full_name?.[0] || user.email?.[0] || "?").toUpperCase()}
+                  </span>
+                )}
+              </Link>
+            </div>
           ) : (
             /* Logged out — liquid glass Google Sign In button */
-            <button
-              onClick={handleGoogleLogin}
-              className="group relative flex items-center space-x-2.5 px-5 py-2.5 rounded-full transition-transform duration-300 hover:scale-105 active:scale-95"
-            >
+            <div className="flex items-center space-x-6">
+              <Link
+                href="/compare"
+                className="text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors hidden sm:block"
+              >
+                Compare Stories
+              </Link>
+              <button
+                onClick={handleGoogleLogin}
+                className="group relative flex items-center space-x-2.5 px-5 py-2.5 rounded-full transition-transform duration-300 hover:scale-105 active:scale-95"
+              >
               <span className="absolute inset-0 rounded-full bg-white/40 backdrop-blur-xl border border-white/60 shadow-[0_4px_24px_0_rgba(99,102,241,0.15),inset_0_1.5px_2px_0_rgba(255,255,255,0.7)] group-hover:shadow-[0_6px_32px_0_rgba(99,102,241,0.25),inset_0_1.5px_2px_0_rgba(255,255,255,0.8)] transition-shadow duration-300 pointer-events-none" />
               <svg className="relative w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -398,6 +319,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
               </svg>
               <span className="relative text-sm font-semibold text-slate-700">Sign in with Google</span>
             </button>
+            </div>
           )
         )}
       </nav>
@@ -514,31 +436,48 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
           )}
         </motion.div>
 
-        {/* Action Button */}
-        <motion.button
-          onClick={handleAnalyze}
-          disabled={loading || story.length < MIN_STORY_LENGTH}
-          whileHover={{ scale: (loading || story.length < MIN_STORY_LENGTH) ? 1 : 1.03 }}
-          whileTap={{ scale: (loading || story.length < MIN_STORY_LENGTH) ? 1 : 0.98 }}
-          className="relative inline-flex h-16 items-center justify-center rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-12 py-4 text-xl font-bold text-white shadow-xl shadow-indigo-500/30 hover:shadow-indigo-500/50 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 transition-shadow duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? (
-            <>
-              Analyzing...
-              <svg className="ml-3 w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            </>
-          ) : (
-            <>
-              Analyze Story
-              <svg className="ml-2 w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </>
-          )}
-        </motion.button>
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-6 justify-center items-center w-full max-w-2xl mx-auto">
+          <motion.button
+            onClick={() => handleAnalyze("quick")}
+            disabled={loading || story.length < MIN_STORY_LENGTH}
+            whileHover={{ scale: (loading || story.length < MIN_STORY_LENGTH) ? 1 : 1.05 }}
+            whileTap={{ scale: (loading || story.length < MIN_STORY_LENGTH) ? 1 : 0.95 }}
+            className="flex-1 w-full relative h-16 inline-flex items-center justify-center rounded-2xl bg-white border-2 border-indigo-100 px-8 py-4 text-lg font-bold text-indigo-600 shadow-lg hover:border-indigo-400 hover:bg-indigo-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+          >
+            {loading && analysisMode === "quick" ? (
+              <span className="flex items-center">
+                Running Quick Analysis...
+                <svg className="ml-2 w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <span className="text-xl group-hover:animate-bounce">⚡</span>
+                Quick Analysis
+              </span>
+            )}
+          </motion.button>
+
+          <motion.button
+            onClick={() => handleAnalyze("deep")}
+            disabled={loading || story.length < MIN_STORY_LENGTH}
+            whileHover={{ scale: (loading || story.length < MIN_STORY_LENGTH) ? 1 : 1.05 }}
+            whileTap={{ scale: (loading || story.length < MIN_STORY_LENGTH) ? 1 : 0.95 }}
+            className="flex-1 w-full relative h-16 inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-8 py-4 text-lg font-bold text-white shadow-xl shadow-indigo-500/20 hover:bg-indigo-700 hover:shadow-indigo-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+          >
+            {loading && analysisMode === "deep" ? (
+              <span className="flex items-center">
+                Running Deep Analysis...
+                <svg className="ml-2 w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <span className="text-xl group-hover:animate-pulse">🧠</span>
+                Deep Analysis
+              </span>
+            )}
+          </motion.button>
+        </div>
 
         {/* Result Section */}
         {loading && (
@@ -585,11 +524,16 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
               <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.98 }}
+                disabled={isExporting}
                 onClick={handleDownloadPdf}
-                className="inline-flex items-center justify-center rounded-xl bg-white border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-600 shadow-sm hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-colors"
+                className="inline-flex items-center justify-center rounded-xl bg-white border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-600 shadow-sm hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-colors disabled:opacity-50"
               >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                Download PDF
+                {isExporting ? (
+                  <svg className="w-5 h-5 mr-2 animate-spin text-indigo-500" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                ) : (
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                )}
+                {isExporting ? "Generating..." : "Download PDF"}
               </motion.button>
               <motion.button
                 whileHover={{ scale: 1.03 }}
@@ -637,11 +581,11 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
             </div>
 
             {/* Detailed Feedback Sections */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Strengths */}
               <motion.div
                 whileHover={{ y: -2 }}
-                className="bg-white/80 backdrop-blur-md border border-emerald-100 rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-shadow hover:border-emerald-200"
+                className="h-full bg-white/80 backdrop-blur-md border border-emerald-100 rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-shadow hover:border-emerald-200"
               >
                 <h3 className="text-2xl font-black text-emerald-600 flex items-center mb-6">
                   <div className="bg-emerald-100 p-2 rounded-xl mr-3">
@@ -662,7 +606,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
               {/* Weaknesses */}
               <motion.div
                 whileHover={{ y: -2 }}
-                className="bg-white/80 backdrop-blur-md border border-rose-100 rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-shadow hover:border-rose-200"
+                className="h-full bg-white/80 backdrop-blur-md border border-rose-100 rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-shadow hover:border-rose-200"
               >
                 <h3 className="text-2xl font-black text-rose-600 flex items-center mb-6">
                   <div className="bg-rose-100 p-2 rounded-xl mr-3">
@@ -683,7 +627,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
               {/* Suggestions */}
               <motion.div
                 whileHover={{ y: -2 }}
-                className="bg-white/80 backdrop-blur-md border border-indigo-100 rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-shadow hover:border-indigo-200"
+                className="h-full bg-white/80 backdrop-blur-md border border-indigo-100 rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-shadow hover:border-indigo-200"
               >
                 <h3 className="text-2xl font-black text-indigo-600 flex items-center mb-6">
                   <div className="bg-indigo-100 p-2 rounded-xl mr-3">
@@ -830,19 +774,31 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                   <div className="bg-teal-100 p-2 rounded-xl mr-3">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                   </div>
-                  Readability
+                  Readability Metrics
                 </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                   {[
-                    { label: "Flesch Score", value: result.readability.flesch_reading_ease, suffix: "/100", hint: result.readability.flesch_reading_ease >= 70 ? "Easy" : result.readability.flesch_reading_ease >= 50 ? "Medium" : "Hard" },
+                    { 
+                      label: "Flesch Ease", 
+                      value: result.readability.flesch_reading_ease, 
+                      suffix: "/100", 
+                      hint: result.readability.flesch_reading_ease >= 90 ? "Very Easy" 
+                          : result.readability.flesch_reading_ease >= 80 ? "Easy"
+                          : result.readability.flesch_reading_ease >= 70 ? "Fairly Easy"
+                          : result.readability.flesch_reading_ease >= 60 ? "Standard"
+                          : result.readability.flesch_reading_ease >= 50 ? "Fairly Difficult"
+                          : result.readability.flesch_reading_ease >= 30 ? "Difficult"
+                          : "Very Difficult"
+                    },
                     { label: "Grade Level", value: result.readability.grade_level, suffix: "", hint: `Grade ${result.readability.grade_level}` },
-                    { label: "Word Count", value: result.readability.word_count, suffix: " words", hint: "" },
-                    { label: "Sentences", value: result.readability.sentence_count, suffix: "", hint: "" },
+                    { label: "Word Count", value: result.readability.word_count, suffix: "", hint: "Total Words" },
+                    { label: "Sentences", value: result.readability.sentence_count, suffix: "", hint: "Total Sentences" },
+                    { label: "Avg Sentence", value: result.readability.average_sentence_length.toFixed(1), suffix: "", hint: "Words/Sentence" },
                   ].map((stat, i) => (
-                    <div key={i} className="bg-teal-50/70 rounded-2xl p-5 flex flex-col items-center text-center border border-teal-100">
-                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{stat.label}</span>
+                    <div key={i} className="bg-teal-50/70 rounded-2xl p-5 flex flex-col items-center text-center border border-teal-100 h-full">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">{stat.label}</span>
                       <span className="text-2xl font-black text-teal-700">{stat.value}<span className="text-sm font-bold text-teal-400">{stat.suffix}</span></span>
-                      {stat.hint && <span className="text-xs text-teal-500 font-semibold mt-1">{stat.hint}</span>}
+                      <span className="text-[10px] text-teal-500 font-bold mt-1 leading-tight">{stat.hint}</span>
                     </div>
                   ))}
                 </div>
