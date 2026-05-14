@@ -20,19 +20,27 @@ type AnalyzeResult = {
 } | null;
 
 export default function Home() {
+  const MIN_STORY_LENGTH = 100;
   const [story, setStory] = useState("");
   const [loading, setLoading] = useState(false);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalyzeResult>(null);
   const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
+    // Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      setAuthLoading(false);
+    }).catch(() => {
+      setAuthLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      setAuthLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -41,6 +49,9 @@ export default function Home() {
   const handleGoogleLogin = async () => {
     await supabase.auth.signInWithOAuth({
       provider: "google",
+      options: {
+        redirectTo: window.location.origin,
+      },
     });
   };
 
@@ -52,8 +63,9 @@ export default function Home() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setPdfError(null);
     if (file.type !== "application/pdf") {
-      alert("Please upload a valid PDF file.");
+      setPdfError("Please upload a valid PDF file.");
       return;
     }
 
@@ -77,9 +89,10 @@ export default function Home() {
       }
 
       setStory(extractedText.trim());
+      setPdfError(null);
     } catch (error) {
       console.error("Failed to parse PDF:", error);
-      alert("Failed to parse the PDF file. Please try another one.");
+      setPdfError("Failed to extract text. Please ensure it's a valid PDF or paste the text manually.");
     } finally {
       setIsPdfLoading(false);
       // Reset the input so the same file can be uploaded again if needed
@@ -88,7 +101,7 @@ export default function Home() {
   };
 
   const handleAnalyze = async () => {
-    if (!story.trim()) return;
+    if (story.length < MIN_STORY_LENGTH) return;
 
     setLoading(true);
     setResult(null);
@@ -234,24 +247,33 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
 
       {/* Top Navigation Bar */}
       <nav className="absolute top-0 left-0 right-0 p-4 sm:p-6 w-full flex justify-end items-center z-50">
-        {user ? (
+        {authLoading ? (
+          <div className="flex items-center space-x-2 bg-white/70 backdrop-blur-md px-4 py-2 rounded-full border border-white/50 shadow-sm">
+            <div className="w-4 h-4 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+            <span className="text-xs font-bold text-slate-400">Checking session...</span>
+          </div>
+        ) : user ? (
           <div className="flex items-center gap-3 bg-white/70 backdrop-blur-md px-4 py-2 rounded-full border border-white/50 shadow-sm">
-            {user.user_metadata?.avatar_url ? (
-              <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-8 h-8 rounded-full border border-indigo-200" />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
-                {(user.user_metadata?.full_name?.[0] || user.email?.[0] || "?").toUpperCase()}
-              </div>
-            )}
+            <Link href="/dashboard" className="hover:opacity-80 transition-opacity" title="Go to Profile">
+              {user.user_metadata?.avatar_url ? (
+                <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-8 h-8 rounded-full border border-indigo-200" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+                  {(user.user_metadata?.full_name?.[0] || user.email?.[0] || "?").toUpperCase()}
+                </div>
+              )}
+            </Link>
             <span className="text-sm font-semibold text-slate-700 hidden sm:block">
               {user.user_metadata?.full_name || user.email}
             </span>
             <div className="w-px h-5 bg-slate-200"></div>
             <Link
               href="/dashboard"
-              className="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full transition-colors shadow-sm"
+              className="flex items-center space-x-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full transition-colors shadow-sm"
+              title="View Profile & History"
             >
-              Dashboard
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+              <span className="hidden sm:inline">Profile</span>
             </Link>
             <button
               onClick={handleSignOut}
@@ -342,6 +364,17 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
             </label>
           </div>
 
+          {pdfError && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="w-full bg-rose-50 border border-rose-100 rounded-2xl p-4 flex items-center space-x-3 text-rose-600 shadow-sm"
+            >
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <span className="text-sm font-bold">{pdfError}</span>
+            </motion.div>
+          )}
+
           <div className="w-full relative group">
             <div className="absolute -inset-1 bg-gradient-to-r from-indigo-200 via-purple-200 to-pink-200 rounded-3xl blur opacity-40 group-hover:opacity-60 transition duration-500"></div>
             <textarea
@@ -351,16 +384,35 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
               className="relative w-full h-72 sm:h-96 p-8 bg-white/90 backdrop-blur-md border border-white/50 rounded-3xl shadow-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none text-slate-800 placeholder-slate-400 text-lg transition-colors leading-relaxed disabled:opacity-70 disabled:cursor-not-allowed"
               placeholder="Paste your story here..."
             ></textarea>
+            <div className="absolute bottom-6 right-8 flex items-center space-x-2">
+              <div className={`text-xs font-bold px-3 py-1 rounded-full backdrop-blur-md border ${
+                story.length >= MIN_STORY_LENGTH 
+                  ? 'bg-emerald-100/80 text-emerald-600 border-emerald-200' 
+                  : 'bg-amber-100/80 text-amber-600 border-amber-200'
+              }`}>
+                {story.length} / {MIN_STORY_LENGTH} characters
+              </div>
+            </div>
           </div>
+          
+          {story.length > 0 && story.length < MIN_STORY_LENGTH && (
+            <motion.p 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-amber-600 text-sm font-semibold text-center bg-amber-50/50 py-2 rounded-xl border border-amber-100"
+            >
+              Stories must be at least {MIN_STORY_LENGTH} characters long to be analyzed.
+            </motion.p>
+          )}
         </motion.div>
 
         {/* Action Button */}
         <motion.button
           onClick={handleAnalyze}
-          disabled={loading || !story.trim()}
-          whileHover={{ scale: (loading || !story.trim()) ? 1 : 1.03 }}
-          whileTap={{ scale: (loading || !story.trim()) ? 1 : 0.98 }}
-          className="relative inline-flex h-16 items-center justify-center rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-12 py-4 text-xl font-bold text-white shadow-xl shadow-indigo-500/30 hover:shadow-indigo-500/50 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 transition-shadow duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
+          disabled={loading || story.length < MIN_STORY_LENGTH}
+          whileHover={{ scale: (loading || story.length < MIN_STORY_LENGTH) ? 1 : 1.03 }}
+          whileTap={{ scale: (loading || story.length < MIN_STORY_LENGTH) ? 1 : 0.98 }}
+          className="relative inline-flex h-16 items-center justify-center rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-12 py-4 text-xl font-bold text-white shadow-xl shadow-indigo-500/30 hover:shadow-indigo-500/50 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 transition-shadow duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>
@@ -381,7 +433,23 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
         </motion.button>
 
         {/* Result Section */}
-        {result && (
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full flex flex-col items-center justify-center space-y-4 py-20"
+          >
+            <div className="relative">
+              <div className="w-20 h-20 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <svg className="w-8 h-8 text-indigo-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+              </div>
+            </div>
+            <p className="text-xl font-bold text-slate-600 animate-pulse">Brewing your analysis...</p>
+          </motion.div>
+        )}
+
+        {result && !loading && (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -427,11 +495,11 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
             </div>
 
             {/* Top Cards: Overall Score & Sub-scores */}
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Overall Score Card */}
               <motion.div
                 whileHover={{ scale: 1.02 }}
-                className="col-span-2 md:col-span-6 bg-white/80 backdrop-blur-md border border-white/50 rounded-3xl p-10 shadow-xl flex flex-col items-center justify-center hover:shadow-2xl transition-shadow"
+                className="col-span-1 sm:col-span-2 lg:col-span-3 bg-white/80 backdrop-blur-md border border-white/50 rounded-3xl p-8 sm:p-10 shadow-xl flex flex-col items-center justify-center hover:shadow-2xl transition-shadow"
               >
                 <span className="text-slate-500 text-sm font-bold uppercase tracking-widest mb-3 text-center">Overall Score</span>
                 <span className="text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">
@@ -452,10 +520,10 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                 <motion.div
                   key={i}
                   whileHover={{ scale: 1.05, y: -2 }}
-                  className={`bg-white/90 backdrop-blur-sm border border-slate-100 rounded-2xl p-6 flex flex-col items-center justify-center shadow-lg hover:shadow-xl transition-shadow ${item.bg}`}
+                  className={`bg-white/90 backdrop-blur-sm border border-slate-100 rounded-2xl p-6 flex flex-col items-center justify-center shadow-lg hover:shadow-xl transition-shadow h-full ${item.bg}`}
                 >
-                  <span className="text-slate-500 text-[11px] sm:text-xs font-bold uppercase tracking-wider mb-2 text-center">{item.label}</span>
-                  <span className={`text-4xl font-black ${item.color}`}>{item.score}</span>
+                  <span className="text-slate-500 text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-2 text-center leading-tight">{item.label}</span>
+                  <span className={`text-3xl sm:text-4xl font-black ${item.color}`}>{item.score}</span>
                 </motion.div>
               ))}
             </div>
