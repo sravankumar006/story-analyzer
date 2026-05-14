@@ -253,20 +253,53 @@ export default function Dashboard() {
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {[
-            { label: "Total Analyses", val: stats.total, color: "text-indigo-600", bg: "bg-indigo-50" },
-            { label: "Average Score", val: stats.avg, color: "text-purple-600", bg: "bg-purple-50" },
-            { label: "Best Score", val: stats.best, color: "text-emerald-600", bg: "bg-emerald-50" },
-            { label: "Favorite Theme", val: stats.favorite, color: "text-amber-600", bg: "bg-amber-50" },
+            { 
+              label: "Total Analyses", 
+              val: stats.total, 
+              icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>,
+              color: "text-indigo-600", 
+              bg: "from-indigo-50/50 to-white",
+              border: "border-indigo-100"
+            },
+            { 
+              label: "Average Score", 
+              val: stats.avg, 
+              icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>,
+              color: "text-purple-600", 
+              bg: "from-purple-50/50 to-white",
+              border: "border-purple-100"
+            },
+            { 
+              label: "Best Score", 
+              val: stats.best, 
+              icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z"></path></svg>,
+              color: "text-emerald-600", 
+              bg: "from-emerald-50/50 to-white",
+              border: "border-emerald-100"
+            },
+            { 
+              label: "Favorite Theme", 
+              val: stats.favorite, 
+              icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>,
+              color: "text-amber-600", 
+              bg: "from-amber-50/50 to-white",
+              border: "border-amber-100"
+            },
           ].map((s, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.1 }}
-              className="bg-white/80 backdrop-blur-md p-5 rounded-3xl border border-white/50 shadow-lg text-center"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ y: -5, scale: 1.02 }}
+              transition={{ delay: i * 0.1, duration: 0.5, ease: "easeOut" }}
+              className={`relative overflow-hidden bg-gradient-to-br ${s.bg} backdrop-blur-md p-6 rounded-3xl border ${s.border} shadow-lg group transition-all`}
             >
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{s.label}</p>
-              <p className={`text-2xl font-black ${s.color} truncate`}>{s.val}</p>
+              <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/40 rounded-full blur-2xl group-hover:bg-white/60 transition-colors"></div>
+              <div className={`mb-3 p-2 rounded-xl bg-white w-fit shadow-sm ${s.color}`}>
+                {s.icon}
+              </div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{s.label}</p>
+              <p className={`text-3xl font-black ${s.color} truncate relative z-10`}>{s.val}</p>
             </motion.div>
           ))}
         </div>
