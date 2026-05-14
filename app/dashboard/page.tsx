@@ -33,7 +33,7 @@ type AnalysisResult = {
     word_count: number;
     sentence_count: number;
   };
-  sentiment?: { section: string; score: number }[];
+  sentiment?: { section: number | string; score: number }[];
   relationshipGraph?: {
     nodes: { id: string; type: string }[];
     links: { source: string; target: string; type: string }[];

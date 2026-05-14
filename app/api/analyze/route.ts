@@ -45,12 +45,14 @@ JSON format:
     "sentence_count": number
   },
   "sentiment": [
-    { "section": "Opening", "score": number (-1 to 1) },
-    { "section": "Inciting Incident", "score": number (-1 to 1) },
-    { "section": "Rising Action", "score": number (-1 to 1) },
-    { "section": "Climax", "score": number (-1 to 1) },
-    { "section": "Falling Action", "score": number (-1 to 1) },
-    { "section": "Resolution", "score": number (-1 to 1) }
+    { "section": 1, "score": number (-1 to 1) },
+    { "section": 2, "score": number (-1 to 1) },
+    { "section": 3, "score": number (-1 to 1) },
+    { "section": 4, "score": number (-1 to 1) },
+    { "section": 5, "score": number (-1 to 1) },
+    { "section": 6, "score": number (-1 to 1) },
+    { "section": 7, "score": number (-1 to 1) },
+    { "section": 8, "score": number (-1 to 1) }
   ],
   "relationshipGraph": {
     "nodes": [{ "id": "Character Name", "type": "protagonist|antagonist|supporting" }],
@@ -64,7 +66,7 @@ Rules:
 - For timeline, list 3-6 key plot events in chronological order.
 - For characters, only include characters that actually appear in the story.
 - "charactersScore" is a numeric rating 1-10 of how well-written the characters are.
-- For sentiment, provide a score for each narrative phase based on the story's tone.
+- For sentiment, split the story into 8 equal sections and provide a score for each (-1 to 1).
 - For relationshipGraph, only include significant character dynamics found in the text.
 
 Story:

@@ -45,7 +45,7 @@ type AnalyzeResult = {
       word_count: number;
       sentence_count: number;
     };
-    sentiment?: { section: string; score: number }[];
+    sentiment?: { section: number | string; score: number }[];
     relationshipGraph?: {
       nodes: { id: string; type: string }[];
       links: { source: string; target: string; type: string }[];
@@ -861,7 +861,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                   <div className="bg-indigo-100 p-2 rounded-xl mr-3">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
                   </div>
-                  Narrative Sentiment Flow
+                  Emotional Journey
                 </h3>
                 <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
@@ -873,6 +873,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                         tickLine={false} 
                         tick={{ fill: '#64748b', fontSize: 10, fontWeight: 600 }}
                         dy={10}
+                        label={{ value: 'Story Sections (1-8)', position: 'insideBottom', offset: -5, fontSize: 10, fontWeight: 700, fill: '#94a3b8' }}
                       />
                       <YAxis 
                         domain={[-1, 1]} 
