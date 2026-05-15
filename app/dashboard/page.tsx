@@ -6,7 +6,7 @@ import { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { generateStoryReport } from "@/lib/pdf-export";
-import ProfileChip from "@/components/ProfileChip";
+
 
 
 
@@ -222,7 +222,13 @@ export default function Dashboard() {
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
           <span>Back to Analyzer</span>
         </button>
-        <ProfileChip user={user} onSignOut={handleSignOut} />
+        <button
+          onClick={handleSignOut}
+          className="bg-white/70 backdrop-blur-md px-5 py-2 rounded-full border border-rose-100 shadow-sm text-sm font-bold text-rose-500 hover:bg-rose-50 transition-colors"
+        >
+          Sign Out
+        </button>
+
 
 
 

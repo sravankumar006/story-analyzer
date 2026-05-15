@@ -17,7 +17,7 @@ import {
   ReferenceLine 
 } from 'recharts';
 import { generateStoryReport } from "@/lib/pdf-export";
-import ProfileChip from "@/components/ProfileChip";
+
 
 
 
@@ -286,8 +286,26 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
               >
                 Compare Stories
               </Link>
-              <ProfileChip user={user} onSignOut={handleSignOut} />
+              <Link
+                href="/dashboard"
+                title="Go to Profile"
+                className="group relative flex items-center justify-center w-12 h-12 rounded-full transition-transform duration-300 hover:scale-105 active:scale-95"
+              >
+                <span className="absolute inset-0 rounded-full bg-white/30 backdrop-blur-xl border border-white/60 shadow-[0_4px_24px_0_rgba(99,102,241,0.18),inset_0_1.5px_2px_0_rgba(255,255,255,0.7)] group-hover:shadow-[0_6px_32px_0_rgba(99,102,241,0.30),inset_0_1.5px_2px_0_rgba(255,255,255,0.8)] transition-shadow duration-300 pointer-events-none" />
+                {user.user_metadata?.avatar_url ? (
+                  <img
+                    src={user.user_metadata.avatar_url}
+                    alt="Profile"
+                    className="relative w-10 h-10 rounded-full object-cover border-2 border-white/70 shadow-sm"
+                  />
+                ) : (
+                  <span className="relative w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg shadow-sm border-2 border-white/70">
+                    {(user.user_metadata?.full_name?.[0] || user.email?.[0] || "?").toUpperCase()}
+                  </span>
+                )}
+              </Link>
             </div>
+
 
 
 
