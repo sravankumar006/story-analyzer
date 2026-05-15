@@ -7,6 +7,10 @@ import { generateComparisonReport } from "@/lib/pdf-export";
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
+import { supabase } from "@/lib/supabase";
+import { User } from "@supabase/supabase-js";
+import { useEffect } from "react";
+import ProfileChip from "@/components/ProfileChip";
 
 
 
@@ -44,7 +48,24 @@ export default function ComparePage() {
   const [compSummary, setCompSummary] = useState("");
   const [loading, setLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push("/");
+  };
+
 
 
 
@@ -126,8 +147,11 @@ export default function ComparePage() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
             Back
           </button>
-          <h1 className="text-2xl font-bold text-slate-800 font-playfair">Story Comparison</h1>
-          <div className="w-20"></div>
+          <h1 className="text-2xl font-bold text-slate-800 font-playfair hidden sm:block">Story Comparison</h1>
+          <div className="flex-1 sm:flex-none flex justify-end">
+            {user && <ProfileChip user={user} onSignOut={handleSignOut} />}
+          </div>
+
 
 
         </nav>
