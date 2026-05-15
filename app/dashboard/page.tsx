@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { generateStoryReport } from "@/lib/pdf-export";
 
+
+
 type CharacterEntry = {
   name: string;
   mentions: number;
@@ -224,31 +226,92 @@ export default function Dashboard() {
         >
           Sign Out
         </button>
+
+
+
       </nav>
 
       <div className="max-w-6xl w-full mx-auto relative z-10 flex flex-col space-y-8">
 
-        {/* Profile Card */}
+        {/* Redesigned Profile Card - Light Subtle Version */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full bg-white/80 backdrop-blur-md border border-white/50 p-6 sm:p-8 rounded-3xl shadow-xl flex flex-col sm:flex-row items-center sm:space-x-8"
+          whileHover={{ y: -4, transition: { duration: 0.3 } }}
+          className="group relative w-full overflow-hidden rounded-[2.5rem] p-[1px] shadow-[0_20px_50px_rgba(0,0,0,0.05)] transition-all duration-500 hover:shadow-indigo-500/10"
         >
-          <div className="flex-shrink-0 mb-4 sm:mb-0">
-            {user.user_metadata?.avatar_url ? (
-              <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-24 h-24 rounded-full border-4 border-white shadow-md object-cover" />
-            ) : (
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-indigo-600 font-black text-3xl border-4 border-white shadow-md">
-                {(user.user_metadata?.full_name?.[0] || user.email?.[0] || "?").toUpperCase()}
+          {/* Subtle Animated Gradient Border */}
+          <div className="absolute inset-0 animate-border-spin bg-gradient-to-r from-indigo-200 via-purple-200 to-rose-200 opacity-40 group-hover:opacity-100 transition-opacity duration-700" />
+          
+          <div className="relative h-full w-full bg-white/40 backdrop-blur-3xl rounded-[2.5rem] p-8 sm:p-12 overflow-hidden">
+            {/* Background Decorative Elements - Softer Pastels */}
+            <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-200/20 rounded-full -mr-40 -mt-40 blur-[80px]" />
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-rose-200/20 rounded-full -ml-40 -mb-40 blur-[80px]" />
+            <div className="absolute inset-0 bg-noise opacity-[0.015] pointer-events-none" />
+
+            <div className="relative z-10 flex flex-col sm:flex-row items-center gap-8 sm:gap-12">
+              {/* Avatar Section */}
+              <div className="relative group/avatar">
+                <div className="absolute -inset-2 bg-gradient-to-tr from-indigo-100 via-purple-100 to-rose-100 rounded-full blur-md opacity-50 group-hover/avatar:opacity-100 transition duration-700" />
+                <div className="relative w-32 h-32 sm:w-36 sm:h-36 rounded-full p-1.5 bg-white overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
+                  {user.user_metadata?.avatar_url ? (
+                    <img 
+                      src={user.user_metadata.avatar_url} 
+                      alt="Avatar" 
+                      className="w-full h-full rounded-full object-cover transition-transform duration-1000 group-hover/avatar:scale-105" 
+                    />
+                  ) : (
+                    <div className="w-full h-full rounded-full bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center text-indigo-400 font-bold text-4xl font-playfair">
+                      {(user.user_metadata?.full_name?.[0] || user.email?.[0] || "?").toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                {/* Subtle Inner Glow Ring */}
+                <div className="absolute inset-0 rounded-full border border-white/60 scale-100 pointer-events-none" />
               </div>
-            )}
-          </div>
-          <div className="flex-1 text-center sm:text-left">
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-800">{user.user_metadata?.full_name || "Writer"}</h1>
-            <p className="text-slate-500 font-medium">{user.email}</p>
-            <p className="text-xs text-slate-400 mt-1 uppercase tracking-wider font-bold">Joined {new Date(user.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</p>
+
+              {/* Info Section */}
+              <div className="flex-1 text-center sm:text-left space-y-4">
+                <div className="space-y-1.5">
+                  <h1 className="text-3xl sm:text-4xl font-bold text-slate-800 font-playfair tracking-tight leading-tight">
+                    {user.user_metadata?.full_name || "Writer"}
+                  </h1>
+                  
+                  {/* Writer Badge - Softer Style */}
+                  <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-white/60 border border-indigo-100/50 text-indigo-500 text-[10px] font-bold uppercase tracking-[0.2em] shadow-sm">
+                    <svg className="w-3 h-3 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                    Literary Member
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <div className="flex items-center justify-center sm:justify-start text-slate-500 font-medium group/email cursor-default">
+                    <div className="p-1.5 rounded-lg bg-white/50 border border-slate-100 mr-3 shadow-sm group-hover/email:bg-white group-hover/email:border-indigo-100 transition-all">
+                      <svg className="w-3.5 h-3.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <span className="text-sm tracking-wide">{user.email}</span>
+                  </div>
+                  <div className="flex items-center justify-center sm:justify-start text-slate-400 font-medium group/date cursor-default">
+                    <div className="p-1.5 rounded-lg bg-white/50 border border-slate-100 mr-3 shadow-sm group-hover/date:bg-white group-hover/date:border-indigo-100 transition-all">
+                      <svg className="w-3.5 h-3.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <span className="text-[10px] uppercase tracking-widest font-bold">
+                      Joined {new Date(user.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </motion.div>
+
+
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
@@ -298,8 +361,8 @@ export default function Dashboard() {
               <div className={`mb-3 p-2 rounded-xl bg-white w-fit shadow-sm ${s.color}`}>
                 {s.icon}
               </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{s.label}</p>
-              <p className={`text-3xl font-black ${s.color} truncate relative z-10`}>{s.val}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 font-inter">{s.label}</p>
+              <p className={`text-3xl font-bold ${s.color} truncate relative z-10 font-space-grotesk`}>{s.val}</p>
             </motion.div>
           ))}
         </div>
@@ -311,10 +374,11 @@ export default function Dashboard() {
           className="w-full bg-white/80 backdrop-blur-md border border-white/50 p-6 sm:p-8 rounded-3xl shadow-xl flex flex-col"
         >
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
-            <h2 className="text-xl font-black text-slate-800 flex items-center">
+            <h2 className="text-xl font-bold text-slate-800 flex items-center font-inter">
               <svg className="w-6 h-6 mr-3 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
               Analysis History
             </h2>
+
 
             {/* Search & Filters */}
             <div className="flex flex-wrap items-center gap-3">
@@ -377,7 +441,7 @@ export default function Dashboard() {
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm font-space-grotesk ${
                           a.result.overallScore >= 8 ? "bg-emerald-100 text-emerald-600"
                           : a.result.overallScore >= 5 ? "bg-amber-100 text-amber-600"
                           : "bg-rose-100 text-rose-600"
@@ -449,8 +513,8 @@ export default function Dashboard() {
                               { l: "Flow", v: a.result.pacing },
                             ].map(x => (
                               <div key={x.l} className="bg-slate-50 rounded-xl p-2 text-center">
-                                <p className="text-[8px] font-bold text-slate-400 uppercase">{x.l}</p>
-                                <p className="text-sm font-black text-slate-700">{x.v}</p>
+                                <p className="text-[8px] font-bold text-slate-400 uppercase font-inter">{x.l}</p>
+                                <p className="text-sm font-bold text-slate-700 font-space-grotesk">{x.v}</p>
                               </div>
                             ))}
                           </div>

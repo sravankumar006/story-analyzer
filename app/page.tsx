@@ -18,6 +18,8 @@ import {
 } from 'recharts';
 import { generateStoryReport } from "@/lib/pdf-export";
 
+
+
 type CharacterEntry = {
   name: string;
   mentions: number;
@@ -64,6 +66,7 @@ export default function Home() {
   const [isPdfLoading, setIsPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalyzeResult>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
@@ -160,9 +163,12 @@ export default function Home() {
       const analysisData = await response.json();
 
       if (analysisData.error) {
-        throw new Error(analysisData.error);
+        setAnalysisError(analysisData.details ? `${analysisData.error}: ${analysisData.details}` : analysisData.error);
+        setLoading(false);
+        return;
       }
 
+      setAnalysisError(null);
       setResult(analysisData);
 
       // --- Save to Supabase ---
@@ -189,8 +195,9 @@ export default function Home() {
       }
       // --- End Save ---
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Analysis failed:", error);
+      setAnalysisError(error.message || "An unexpected error occurred during analysis.");
     } finally {
       setLoading(false);
     }
@@ -270,7 +277,6 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
       <nav className="absolute top-0 left-0 right-0 p-5 sm:p-6 w-full flex justify-end items-center z-50">
         {!authLoading && (
           user ? (
-            /* Logged in — liquid glass profile button */
             <div className="flex items-center space-x-6">
               <Link
                 href="/compare"
@@ -291,12 +297,14 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                     className="relative w-10 h-10 rounded-full object-cover border-2 border-white/70 shadow-sm"
                   />
                 ) : (
-                  <span className="relative w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-extrabold text-lg shadow-sm border-2 border-white/70">
+                  <span className="relative w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg shadow-sm border-2 border-white/70">
                     {(user.user_metadata?.full_name?.[0] || user.email?.[0] || "?").toUpperCase()}
                   </span>
                 )}
               </Link>
             </div>
+
+
           ) : (
             /* Logged out — liquid glass Google Sign In button */
             <div className="flex items-center space-x-6">
@@ -334,7 +342,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
           className="flex flex-col md:flex-row items-center justify-between w-full gap-8 md:gap-12"
         >
           <div className="text-center md:text-left space-y-4 flex-1">
-            <h1 className="text-5xl sm:text-7xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 pb-2">
+            <h1 className="text-5xl sm:text-7xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 pb-2 font-playfair">
               Story Analyzer
             </h1>
             <p className="text-lg sm:text-2xl text-slate-600 font-medium max-w-2xl mx-auto md:mx-0">
@@ -412,7 +420,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
               value={story}
               onChange={(e) => setStory(e.target.value)}
               disabled={loading}
-              className="relative w-full h-72 sm:h-96 p-8 bg-white/90 backdrop-blur-md border border-white/50 rounded-3xl shadow-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none text-slate-800 placeholder-slate-400 text-lg transition-colors leading-relaxed disabled:opacity-70 disabled:cursor-not-allowed"
+              className="relative w-full h-72 sm:h-96 p-8 bg-white/90 backdrop-blur-md border border-white/50 rounded-3xl shadow-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none text-slate-800 placeholder-slate-400 text-lg transition-colors leading-relaxed disabled:opacity-70 disabled:cursor-not-allowed font-merriweather"
               placeholder="Paste your story here..."
             ></textarea>
             <div className="absolute bottom-6 right-8 flex items-center space-x-2">
@@ -434,7 +442,29 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
               Stories must be at least {MIN_STORY_LENGTH} characters long to be analyzed.
             </motion.p>
           )}
+
+          {analysisError && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full bg-rose-50 border border-rose-100 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-rose-600 shadow-sm"
+            >
+              <div className="flex items-center space-x-3">
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span className="text-sm font-bold">{analysisError}</span>
+              </div>
+              <button
+                onClick={() => handleAnalyze(analysisMode)}
+                className="whitespace-nowrap px-4 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-xl text-xs font-black transition-colors flex items-center"
+              >
+                <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                Retry
+              </button>
+            </motion.div>
+          )}
+
         </motion.div>
+
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-6 justify-center items-center w-full max-w-2xl mx-auto">
@@ -510,7 +540,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
               transition={{ delay: 0.3, duration: 0.5 }}
               className="w-full max-w-2xl mx-auto bg-white/70 backdrop-blur-md border border-white/50 rounded-2xl p-5 text-center shadow-lg"
             >
-              <p className="text-lg font-semibold italic text-slate-700">
+              <p className="text-lg font-semibold italic text-slate-700 font-playfair">
                 {result.overallScore < 4
                   ? "This manuscript may require divine intervention."
                   : result.overallScore > 9
@@ -554,10 +584,10 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                 className="col-span-1 sm:col-span-2 lg:col-span-3 bg-white/80 backdrop-blur-md border border-white/50 rounded-3xl p-8 sm:p-10 shadow-xl flex flex-col items-center justify-center hover:shadow-2xl transition-shadow"
               >
                 <span className="text-slate-500 text-sm font-bold uppercase tracking-widest mb-3 text-center">Overall Score</span>
-                <span className="text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">
+                <span className="text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 font-space-grotesk">
                   {result.overallScore}
                 </span>
-                <span className="text-slate-400 text-base mt-2 font-bold">/ 10</span>
+                <span className="text-slate-400 text-base mt-2 font-bold font-space-grotesk">/ 10</span>
               </motion.div>
 
               {/* Sub-scores Grid */}
@@ -575,7 +605,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                   className={`bg-white/90 backdrop-blur-sm border border-slate-100 rounded-2xl p-6 flex flex-col items-center justify-center shadow-lg hover:shadow-xl transition-shadow h-full ${item.bg}`}
                 >
                   <span className="text-slate-500 text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-2 text-center leading-tight">{item.label}</span>
-                  <span className={`text-3xl sm:text-4xl font-black ${item.color}`}>{item.score}</span>
+                  <span className={`text-3xl sm:text-4xl font-bold ${item.color} font-space-grotesk`}>{item.score}</span>
                 </motion.div>
               ))}
             </div>
@@ -608,7 +638,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                 whileHover={{ y: -2 }}
                 className="h-full bg-white/80 backdrop-blur-md border border-rose-100 rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-shadow hover:border-rose-200"
               >
-                <h3 className="text-2xl font-black text-rose-600 flex items-center mb-6">
+                <h3 className="text-2xl font-bold text-rose-600 flex items-center mb-6">
                   <div className="bg-rose-100 p-2 rounded-xl mr-3">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                   </div>
@@ -629,7 +659,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                 whileHover={{ y: -2 }}
                 className="h-full bg-white/80 backdrop-blur-md border border-indigo-100 rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-shadow hover:border-indigo-200"
               >
-                <h3 className="text-2xl font-black text-indigo-600 flex items-center mb-6">
+                <h3 className="text-2xl font-bold text-indigo-600 flex items-center mb-6">
                   <div className="bg-indigo-100 p-2 rounded-xl mr-3">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                   </div>
@@ -656,13 +686,13 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                 transition={{ delay: 0.1 }}
                 className="bg-white/80 backdrop-blur-md border border-slate-100 rounded-3xl p-8 shadow-xl"
               >
-                <h3 className="text-xl font-black text-slate-800 flex items-center mb-4">
+                <h3 className="text-xl font-bold text-slate-800 flex items-center mb-4">
                   <div className="bg-slate-100 p-2 rounded-xl mr-3">
                     <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                   </div>
                   Summary
                 </h3>
-                <p className="text-slate-600 leading-relaxed text-base font-medium italic">&ldquo;{result.summary}&rdquo;</p>
+                <p className="text-slate-600 leading-relaxed text-base font-medium italic font-playfair">&ldquo;{result.summary}&rdquo;</p>
               </motion.div>
             )}
 
@@ -677,7 +707,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                   transition={{ delay: 0.15 }}
                   className="bg-white/80 backdrop-blur-md border border-purple-100 rounded-3xl p-8 shadow-xl"
                 >
-                  <h3 className="text-xl font-black text-purple-700 flex items-center mb-5">
+                  <h3 className="text-xl font-bold text-purple-700 flex items-center mb-5">
                     <div className="bg-purple-100 p-2 rounded-xl mr-3">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
                     </div>
@@ -685,7 +715,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     {result.themes.map((theme, i) => (
-                      <span key={i} className="bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 font-bold text-sm px-4 py-2 rounded-full border border-purple-200 shadow-sm">
+                      <span key={i} className="bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 font-bold text-sm px-4 py-2 rounded-full border border-purple-200 shadow-sm font-inter">
                         {theme}
                       </span>
                     ))}
@@ -701,7 +731,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                   transition={{ delay: 0.2 }}
                   className="bg-white/80 backdrop-blur-md border border-pink-100 rounded-3xl p-8 shadow-xl"
                 >
-                  <h3 className="text-xl font-black text-pink-700 flex items-center mb-5">
+                  <h3 className="text-xl font-bold text-pink-700 flex items-center mb-5">
                     <div className="bg-pink-100 p-2 rounded-xl mr-3">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                     </div>
@@ -711,7 +741,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                     {result.characterList.map((char, i) => (
                       <div key={i} className="flex items-center justify-between bg-slate-50/80 rounded-2xl px-4 py-3 border border-slate-100">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-purple-700 font-black text-sm">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center text-purple-700 font-bold text-sm">
                             {char.name[0]?.toUpperCase()}
                           </div>
                           <span className="font-bold text-slate-700">{char.name}</span>
@@ -723,7 +753,8 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                             : char.role === "supporting" ? "bg-amber-100 text-amber-700"
                             : "bg-slate-100 text-slate-500"
                           }`}>{char.role}</span>
-                          <span className="text-xs text-slate-400 font-semibold">{char.mentions}×</span>
+
+                          <span className="text-xs text-slate-400 font-bold font-space-grotesk">{char.mentions}×</span>
                         </div>
                       </div>
                     ))}
@@ -740,7 +771,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                 transition={{ delay: 0.25 }}
                 className="bg-white/80 backdrop-blur-md border border-amber-100 rounded-3xl p-8 shadow-xl"
               >
-                <h3 className="text-xl font-black text-amber-700 flex items-center mb-6">
+                <h3 className="text-xl font-bold text-amber-700 flex items-center mb-6 font-inter">
                   <div className="bg-amber-100 p-2 rounded-xl mr-3">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                   </div>
@@ -752,7 +783,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                     {result.timeline.map((event, i) => (
                       <div key={i} className="relative flex items-start gap-4">
                         <div className="absolute -left-6 top-1 w-4 h-4 rounded-full bg-amber-400 border-2 border-white shadow-sm flex items-center justify-center">
-                          <span className="text-white font-black" style={{ fontSize: "8px" }}>{i + 1}</span>
+                          <span className="text-white font-bold font-space-grotesk" style={{ fontSize: "8px" }}>{i + 1}</span>
                         </div>
                         <p className="text-slate-700 font-medium leading-relaxed bg-amber-50/60 rounded-2xl px-4 py-3 border border-amber-100 flex-1">{event}</p>
                       </div>
@@ -770,7 +801,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                 transition={{ delay: 0.3 }}
                 className="bg-white/80 backdrop-blur-md border border-teal-100 rounded-3xl p-8 shadow-xl"
               >
-                <h3 className="text-xl font-black text-teal-700 flex items-center mb-6">
+                <h3 className="text-xl font-bold text-teal-700 flex items-center mb-6 font-inter">
                   <div className="bg-teal-100 p-2 rounded-xl mr-3">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                   </div>
@@ -796,9 +827,9 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                     { label: "Avg Sentence", value: result.readability.average_sentence_length.toFixed(1), suffix: "", hint: "Words/Sentence" },
                   ].map((stat, i) => (
                     <div key={i} className="bg-teal-50/70 rounded-2xl p-5 flex flex-col items-center text-center border border-teal-100 h-full">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">{stat.label}</span>
-                      <span className="text-2xl font-black text-teal-700">{stat.value}<span className="text-sm font-bold text-teal-400">{stat.suffix}</span></span>
-                      <span className="text-[10px] text-teal-500 font-bold mt-1 leading-tight">{stat.hint}</span>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 font-inter">{stat.label}</span>
+                      <span className="text-2xl font-bold text-teal-700 font-space-grotesk">{stat.value}<span className="text-sm font-bold text-teal-400 font-space-grotesk">{stat.suffix}</span></span>
+                      <span className="text-[10px] text-teal-500 font-bold mt-1 leading-tight font-inter">{stat.hint}</span>
                     </div>
                   ))}
                 </div>
@@ -813,7 +844,7 @@ ${result.suggestions.map(s => `- ${s}`).join('\n')}
                 transition={{ delay: 0.35 }}
                 className="bg-white/80 backdrop-blur-md border border-indigo-100 rounded-3xl p-8 shadow-xl"
               >
-                <h3 className="text-xl font-black text-indigo-700 flex items-center mb-6">
+                <h3 className="text-xl font-bold text-indigo-700 flex items-center mb-6 font-inter">
                   <div className="bg-indigo-100 p-2 rounded-xl mr-3">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
                   </div>

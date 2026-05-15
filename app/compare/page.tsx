@@ -8,6 +8,8 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
 
+
+
 type CharacterEntry = { name: string; mentions: number; role: string; };
 type AnalysisResult = {
   overallScore: number;
@@ -43,6 +45,8 @@ export default function ComparePage() {
   const [loading, setLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const router = useRouter();
+
+
 
   const handleAnalyze = async () => {
     if (!storyA || !storyB) {
@@ -98,13 +102,13 @@ export default function ComparePage() {
     const isABetter = higherIsBetter ? valA > valB : valA < valB;
     const isBBetter = higherIsBetter ? valB > valA : valB < valA;
     return (
-      <div className="flex flex-col space-y-2 py-4 border-b border-slate-100 last:border-0">
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{label}</span>
+      <div className="flex flex-col space-y-2 py-4 border-b border-slate-100 last:border-0 font-inter">
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{label}</span>
         <div className="grid grid-cols-2 gap-4">
-          <div className={`p-4 rounded-2xl text-center font-black text-lg ${isABetter ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-50 text-slate-500'}`}>
+          <div className={`p-4 rounded-2xl text-center font-bold text-lg font-space-grotesk ${isABetter ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-50 text-slate-500'}`}>
             {valA}
           </div>
-          <div className={`p-4 rounded-2xl text-center font-black text-lg ${isBBetter ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-50 text-slate-500'}`}>
+          <div className={`p-4 rounded-2xl text-center font-bold text-lg font-space-grotesk ${isBBetter ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-50 text-slate-500'}`}>
             {valB}
           </div>
         </div>
@@ -122,8 +126,10 @@ export default function ComparePage() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
             Back
           </button>
-          <h1 className="text-2xl font-black text-slate-800">Story Comparison</h1>
+          <h1 className="text-2xl font-bold text-slate-800 font-playfair">Story Comparison</h1>
           <div className="w-20"></div>
+
+
         </nav>
 
         {!resultA ? (
@@ -134,16 +140,16 @@ export default function ComparePage() {
                 value={storyA} 
                 onChange={(e) => setStoryA(e.target.value)}
                 placeholder="Paste the first version of your story here..."
-                className="w-full h-80 bg-white border border-slate-200 rounded-3xl p-6 shadow-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all resize-none font-medium"
+                className="w-full h-80 bg-white border border-slate-200 rounded-3xl p-6 shadow-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all resize-none font-merriweather leading-relaxed"
               />
             </div>
             <div className="space-y-4">
-              <label className="text-sm font-black text-purple-600 uppercase tracking-widest px-2">Story B (New Version)</label>
+              <label className="text-sm font-bold text-purple-600 uppercase tracking-widest px-2 font-inter">Story B (New Version)</label>
               <textarea 
                 value={storyB} 
                 onChange={(e) => setStoryB(e.target.value)}
                 placeholder="Paste the improved version here..."
-                className="w-full h-80 bg-white border border-slate-200 rounded-3xl p-6 shadow-xl focus:ring-4 focus:ring-purple-500/10 focus:border-purple-400 outline-none transition-all resize-none font-medium"
+                className="w-full h-80 bg-white border border-slate-200 rounded-3xl p-6 shadow-xl focus:ring-4 focus:ring-purple-500/10 focus:border-purple-400 outline-none transition-all resize-none font-merriweather leading-relaxed"
               />
             </div>
             <div className="md:col-span-2 flex justify-center mt-4">

@@ -6,9 +6,17 @@ const ai = new GoogleGenAI({
 });
 
 const MODEL_FALLBACK_CHAIN = [
+  "gemini-2.5-flash",
   "gemini-2.0-flash",
   "gemini-1.5-flash",
+  "gemini-flash-latest",
+  "gemini-2.5-pro",
+  "gemini-2.0-pro",
+  "gemini-1.5-pro",
+  "gemini-pro-latest"
 ];
+
+
 
 const QUICK_PROMPT = (story: string) => `Analyze the following story concisely.
 Return ONLY valid JSON.
@@ -96,16 +104,40 @@ export async function POST(req: Request) {
     }
 
     const prompt = analysisMode === "quick" ? QUICK_PROMPT(story) : DEEP_PROMPT(story);
-    const response = await generateWithFallback(prompt);
-    const raw = response.text ?? "";
-    const match = raw.match(/\{[\s\S]*\}/);
     
-    if (!match) return NextResponse.json({ error: "Analysis failed" }, { status: 500 });
+    let response;
+    try {
+      response = await generateWithFallback(prompt);
+    } catch (err: any) {
+      console.error("Gemini API Error:", err);
+      return NextResponse.json({ 
+        error: "AI Generation failed", 
+        details: err.message || "Unknown API error" 
+      }, { status: 500 });
+    }
 
-    const parsedJson = JSON.parse(match[0]);
+    const raw = response.text ?? "";
+    if (!raw) {
+      return NextResponse.json({ error: "Empty response from AI" }, { status: 500 });
+    }
+
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) {
+      console.error("No JSON found in AI response:", raw);
+      return NextResponse.json({ error: "Invalid AI response format" }, { status: 500 });
+    }
+
+    let parsedJson;
+    try {
+      parsedJson = JSON.parse(match[0]);
+    } catch (err: any) {
+      console.error("JSON Parse Error:", err, "Raw match:", match[0]);
+      return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });
+    }
+
     parsedJson.analysisMode = analysisMode;
 
-    // Fix character score field mapping if present
+    // Fix character score field mapping
     if (parsedJson.charactersScore !== undefined) {
       const charList = Array.isArray(parsedJson.characters) ? parsedJson.characters : [];
       parsedJson.characterList = charList;
@@ -113,12 +145,18 @@ export async function POST(req: Request) {
     } else if (Array.isArray(parsedJson.characters)) {
       parsedJson.characterList = parsedJson.characters;
       parsedJson.characters = 5; // fallback
+    } else if (typeof parsedJson.characters === 'number') {
+      parsedJson.characterList = [];
     }
 
     return NextResponse.json(parsedJson);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Analysis error:", error);
-    return NextResponse.json({ error: "Analysis failed" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Analysis failed", 
+      details: error.message || "Unknown error" 
+    }, { status: 500 });
   }
 }
+
