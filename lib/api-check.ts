@@ -22,8 +22,11 @@ export async function checkApiHealth() {
     // In @google/genai, models.list() is an async iterator
     const availableModels: string[] = [];
     for await (const model of modelsResponse) {
-      availableModels.push(model.name);
+      if (model.name) {
+        availableModels.push(model.name);
+      }
     }
+
 
     return {
       status: "ok",
